@@ -25,15 +25,11 @@ class Direction:
         self.name = name
 
 
-# 8 defined directions for sgm
+# 4 defined directions for sgm
 N = Direction(direction=(0, -1), name='north')
-NE = Direction(direction=(1, -1), name='north-east')
 E = Direction(direction=(1, 0), name='east')
-SE = Direction(direction=(1, 1), name='south-east')
 S = Direction(direction=(0, 1), name='south')
-SW = Direction(direction=(-1, 1), name='south-west')
 W = Direction(direction=(-1, 0), name='west')
-NW = Direction(direction=(-1, -1), name='north-west')
 
 
 class Paths:
@@ -41,9 +37,9 @@ class Paths:
         """
         represent the relation between the directions.
         """
-        self.paths = [N, NE, E, SE, S, SW, W, NW]
+        self.paths = [N, E, S, W]
         self.size = len(self.paths)
-        self.effective_paths = [(E,  W), (SE, NW), (S, N), (SW, NE)]
+        self.effective_paths = [(E,  W), (S, N)]
 
 
 class Parameters:
@@ -78,38 +74,6 @@ def load_images(left_name, right_name, parameters):
     return left, right
 
 
-def get_indices(offset, dim, direction, height):
-    """
-    for the diagonal directions (SE, SW, NW, NE), return the array of indices for the current slice.
-    :param offset: difference with the main diagonal of the cost volume.
-    :param dim: number of elements along the path.
-    :param direction: current aggregation direction.
-    :param height: H of the cost volume.
-    :return: arrays for the y (H dimension) and x (W dimension) indices.
-    """
-    y_indices = []
-    x_indices = []
-
-    for i in range(0, dim):
-        if direction == SE.direction:
-            if offset < 0:
-                y_indices.append(-offset + i)
-                x_indices.append(0 + i)
-            else:
-                y_indices.append(0 + i)
-                x_indices.append(offset + i)
-
-        if direction == SW.direction:
-            if offset < 0:
-                y_indices.append(height + offset - i)
-                x_indices.append(0 + i)
-            else:
-                y_indices.append(height - i)
-                x_indices.append(offset + i)
-
-    return np.array(y_indices), np.array(x_indices)
-
-
 def get_path_cost(slice, offset, parameters):
     """
     part of the aggregation step, finds the minimum costs in a D x M slice (where M = the number of pixels in the
@@ -136,7 +100,8 @@ def get_path_cost(slice, offset, parameters):
         previous_cost = minimum_cost_path[i - 1, :]
         current_cost = slice[i, :]
         costs = np.repeat(previous_cost, repeats=disparity_dim, axis=0).reshape(disparity_dim, disparity_dim)
-        costs = np.amin(costs + penalties, axis=0)
+        costs = costs + penalties # add penalties for previous disparities differing from current disparities
+        costs = np.amin(costs, axis=0) # find minimum costs for the disparities from the previous disparities costs plus penalties 
         minimum_cost_path[i, :] = current_cost + costs - np.amin(previous_cost)
     return minimum_cost_path
 
@@ -152,8 +117,6 @@ def aggregate_costs(cost_volume, parameters, paths):
     height = cost_volume.shape[0]
     width = cost_volume.shape[1]
     disparities = cost_volume.shape[2]
-    start = -(height - 1)
-    end = width - 1
 
     aggregation_volume = np.zeros(shape=(height, width, disparities, paths.size), dtype=cost_volume.dtype)
 
@@ -181,30 +144,8 @@ def aggregate_costs(cost_volume, parameters, paths):
                 main_aggregation[y, :, :] = get_path_cost(east, 1, parameters)
                 opposite_aggregation[y, :, :] = np.flip(get_path_cost(west, 1, parameters), axis=0)
 
-        if main.direction == SE.direction:
-            for offset in range(start, end):
-                south_east = cost_volume.diagonal(offset=offset).T
-                north_west = np.flip(south_east, axis=0)
-                dim = south_east.shape[0]
-                y_se_idx, x_se_idx = get_indices(offset, dim, SE.direction, None)
-                y_nw_idx = np.flip(y_se_idx, axis=0)
-                x_nw_idx = np.flip(x_se_idx, axis=0)
-                main_aggregation[y_se_idx, x_se_idx, :] = get_path_cost(south_east, 1, parameters)
-                opposite_aggregation[y_nw_idx, x_nw_idx, :] = get_path_cost(north_west, 1, parameters)
-
-        if main.direction == SW.direction:
-            for offset in range(start, end):
-                south_west = np.flipud(cost_volume).diagonal(offset=offset).T
-                north_east = np.flip(south_west, axis=0)
-                dim = south_west.shape[0]
-                y_sw_idx, x_sw_idx = get_indices(offset, dim, SW.direction, height - 1)
-                y_ne_idx = np.flip(y_sw_idx, axis=0)
-                x_ne_idx = np.flip(x_sw_idx, axis=0)
-                main_aggregation[y_sw_idx, x_sw_idx, :] = get_path_cost(south_west, 1, parameters)
-                opposite_aggregation[y_ne_idx, x_ne_idx, :] = get_path_cost(north_east, 1, parameters)
-
-        aggregation_volume[:, :, :, path_id] = main_aggregation
-        aggregation_volume[:, :, :, path_id + 1] = opposite_aggregation
+        aggregation_volume[:, :, :, path_id] = main_aggregation # costs for disparities along path 1
+        aggregation_volume[:, :, :, path_id + 1] = opposite_aggregation # costs for disparities along path 2
         path_id = path_id + 2
 
         dusk = t.time()
@@ -323,10 +264,10 @@ def select_disparity(aggregation_volume):
     """
     last step of the sgm algorithm, corresponding to equation 14 followed by winner-takes-all approach.
     :param aggregation_volume: H x W x D x N array of matching cost for all defined directions.
-    :return: disparity image.
+    :return: H x W disparity image.
     """
-    volume = np.sum(aggregation_volume, axis=3)
-    disparity_map = np.argmin(volume, axis=2)
+    volume = np.sum(aggregation_volume, axis=3) # sum up costs for all directions
+    disparity_map = np.argmin(volume, axis=2) # returns the disparity index with the minimum cost associated with each h x w pixel
     return disparity_map
 
 
