@@ -151,9 +151,10 @@ def compute_census(left, right, csize, height, width):
             reference = np.full(shape=(cheight, cwidth), fill_value=center_pixel, dtype=np.int32)
             image = left[(y - y_offset):(y + y_offset + 1), (x - x_offset):(x + x_offset + 1)]
             comparison = image - reference
-
+            # If value is less than center value assign 1 otherwise assign 0 
             left_census_pixel_array = np.where(comparison < 0, 1, 0).flatten()
-            left_census_pixel = np.int32(left_census_pixel_array.dot(1 << np.arange(cheight * cwidth)[::-1]))
+            # Convert census array to an integer by using bit shift operator
+            left_census_pixel = np.int32(left_census_pixel_array.dot(1 << np.arange(cheight * cwidth)[::-1])) 
             left_census_values[y, x] = left_census_pixel
 
             # right
@@ -161,8 +162,9 @@ def compute_census(left, right, csize, height, width):
             reference = np.full(shape=(cheight, cwidth), fill_value=center_pixel, dtype=np.int32)
             image = right[(y - y_offset):(y + y_offset + 1), (x - x_offset):(x + x_offset + 1)]
             comparison = image - reference
-
+            # If value is less than center value assign 1 otherwise assign 0 
             right_census_pixel_array = np.where(comparison < 0, 1, 0).flatten()
+            # Convert census array to an integer by using bit shift operator
             right_census_pixel = np.int32(right_census_pixel_array.dot(1 << np.arange(cheight * cwidth)[::-1])) 
             right_census_values[y, x] = right_census_pixel
 
@@ -328,7 +330,7 @@ def sgm():
     max_disparity = args.disp
     P1 = 10 # penalty for disparity difference = 1
     P2 = 120 # penalty for disparity difference > 1
-    csize = (7, 7) # size of the kernel for the census transform.
+    csize = (5, 5) # size of the kernel for the census transform.
     bsize = (3, 3) # size of the kernel for blurring the images and median filtering.
 
     dawn = t.time()
