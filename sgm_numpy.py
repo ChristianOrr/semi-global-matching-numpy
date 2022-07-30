@@ -22,9 +22,9 @@ def load_images(left_name, right_name, bsize):
     :param parameters: structure containing parameters of the algorithm.
     :return: blurred left and right images.
     """
-    left = cv2.imread(left_name, 0)
+    left = cv2.imread(left_name, cv2.IMREAD_GRAYSCALE)
     left = cv2.GaussianBlur(left, bsize, 0, 0)
-    right = cv2.imread(right_name, 0)
+    right = cv2.imread(right_name, cv2.IMREAD_GRAYSCALE)
     right = cv2.GaussianBlur(right, bsize, 0, 0)
     return left, right
 
@@ -286,17 +286,17 @@ def normalize(volume, max_disparity):
     return 255.0 * volume / max_disparity
 
 
-def get_recall(disparity, gt, args):
+def get_recall(disparity, gt, max_disparity):
     """
     computes the recall of the disparity map.
     :param disparity: disparity image.
-    :param gt: path to ground-truth image.
-    :param args: program arguments.
+    :param gt: ground-truth image.
+    :param max_disparity: maximum disparity for the stereo pair.
     :return: rate of correct predictions.
     """
-    gt = np.float32(cv2.imread(gt, cv2.IMREAD_GRAYSCALE))
-    gt = np.int16(gt / 255.0 * float(args.disp))
-    disparity = np.int16(np.float32(disparity) / 255.0 * float(args.disp))
+    gt = np.float32(gt)
+    gt = np.int16(gt / 255.0 * float(max_disparity))
+    disparity = np.int16(np.float32(disparity) / 255.0 * float(max_disparity))
     correct = np.count_nonzero(np.abs(disparity - gt) <= 3)
     return float(correct) / gt.size
 
@@ -371,11 +371,14 @@ def sgm():
     cv2.imwrite(f'right_{output_name}', np.array(right_disparity_map))
 
     if evaluation:
+        left_gt = cv2.imread(left_gt_name, cv2.IMREAD_GRAYSCALE)
+        right_gt = cv2.imread(right_gt_name, cv2.IMREAD_GRAYSCALE)
+
         print('\nEvaluating left disparity map...')
-        recall = get_recall(left_disparity_map, left_gt_name, args)
+        recall = get_recall(left_disparity_map, left_gt, max_disparity)
         print('\tRecall = {:.2f}%'.format(recall * 100.0))
         print('\nEvaluating right disparity map...')
-        recall = get_recall(right_disparity_map, right_gt_name, args)
+        recall = get_recall(right_disparity_map, right_gt, max_disparity)
         print('\tRecall = {:.2f}%'.format(recall * 100.0))
 
     dusk = t.time()
