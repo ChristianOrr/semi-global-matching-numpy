@@ -31,26 +31,40 @@ def load_images(left_name, right_name, bsize):
 
 def get_path_cost(slice, offset, penalties, other_dim, disparity_dim):
     """
-    part of the aggregation step, finds the minimum costs in a D x M slice (where M = the number of pixels in the
-    given direction)
-    :param slice: M x D array from the cost volume.
-    :param offset: ignore the pixels on the border.
-    :param parameters: structure containing parameters of the algorithm.
-    :return: M x D array of the minimum costs for a given slice in a given direction.
+    Calculates the minimum costs for all potential disparities of 
+    the pixels along a single path direction.
+    Arguments:
+        - slice: Array containing costs for all disparities, D, 
+            along a direction, M, with dimension M x D
+        - offset: Number of pixels on the border to ignore.
+        - penalties: Matrix containing the penalties to assign to the 
+            previous disparities costs. For previous disparities that differ 
+            from current disparities. 
+        - other_dim: Number of pixels in the current paths direction.
+        - disparity_dim: Number of disparities to calculate minimum costs.
+
+    Returns: The pixels minimum costs for all disparities, D, 
+        along path direction, M, with shape M x D.
     """
     minimum_cost_path = np.zeros(shape=(other_dim, disparity_dim), dtype=np.uint32)
     minimum_cost_path[offset - 1, :] = slice[offset - 1, :]
 
     for pixel_index in range(offset, other_dim):
+        # Get all the minimum disparities costs from the previous pixel in the path
         previous_cost = minimum_cost_path[pixel_index - 1, :]
+        # Get all the disparities costs (from the cost volume) for the current pixel
         current_cost = slice[pixel_index, :]
         costs = np.repeat(previous_cost, repeats=disparity_dim, axis=0).reshape(disparity_dim, disparity_dim)
-        costs = costs + penalties # add penalties for previous disparities differing from current disparities
-        costs = np.amin(costs, axis=0) # find minimum costs for the disparities from the previous disparities costs plus penalties 
+        # Add penalties to the previous pixels disparities that differ from current pixels disparities
+        costs = costs + penalties
+        # Find minimum costs for the current pixels disparities using the previous disparities costs + penalties 
+        costs = np.amin(costs, axis=0)  
+        # Current pixels disparities costs + minimum previous pixel disparities costs (with penalty) - 
+        # (constant term) minimum previous cost from all disparities 
         pixel_direction_costs = current_cost + costs - np.amin(previous_cost)
         minimum_cost_path[pixel_index, :] = pixel_direction_costs
 
-    return minimum_cost_path
+    return minimum_cost_path   
 
 
 def get_penalties(max_disparity, P2, P1):
@@ -59,9 +73,9 @@ def get_penalties(max_disparity, P2, P1):
     a current disparity (represented by the column index), with 
     a previous disparity (represented by the row index).
     Arguments:
-        - max_disparity: maximum disparity of the array.
-        - P2: penalty for disparity difference > 1
-        - P1: penalty for disparity difference = 1
+        - max_disparity: Maximum disparity of the array.
+        - P2: Penalty for disparity difference > 1
+        - P1: Penalty for disparity difference = 1
     
     Return: Matrix containing all the penalties when disparity d1 from a column
             is matched with a previous disparity d2 from the row.
@@ -77,11 +91,18 @@ def get_penalties(max_disparity, P2, P1):
 
 def aggregate_costs(cost_volume, P2, P1, height, width, disparities):
     """
-    second step of the sgm algorithm, aggregates matching costs for N possible directions (4 in this case).
-    :param cost_volume: array containing the matching costs.
-    :param parameters: structure containing parameters of the algorithm.
-    :param paths: structure containing all directions in which to aggregate costs.
-    :return: H x W x D x N array of matching cost for all defined directions.
+    Calculates the pixels costs for all disparities along all paths (4 in this case).
+
+    Arguments: 
+        - cost_volume: Array containing the matching cost for each pixel at each disparity.
+        - P2: Penalty for disparity difference > 1
+        - P1: Penalty for disparity difference = 1
+        - height: Number of rows of the image.
+        - width: Number of columns of the image.
+        - disparities: Number of disparities to calculate minimum matching costs.
+
+    Returns: Array containing the pixels matching costs for all disparities along 
+        all directions, with dimension H x W x D X 4.
     """
     penalties = get_penalties(disparities, P2, P1)
 
@@ -90,7 +111,9 @@ def aggregate_costs(cost_volume, P2, P1, height, width, disparities):
     north_aggregation = np.copy(south_aggregation)
 
     for x in range(0, width):
+        # Takes all the rows and disparities for a single column
         south = cost_volume[:, x, :]
+        # Invert the rows to get the opposite direction
         north = np.flip(south, axis=0)
         south_aggregation[:, x, :] = get_path_cost(south, 1, penalties, height, disparities)
         north_aggregation[:, x, :] = np.flip(get_path_cost(north, 1, penalties, height, disparities), axis=0)
@@ -100,11 +123,14 @@ def aggregate_costs(cost_volume, P2, P1, height, width, disparities):
     east_aggregation = np.copy(south_aggregation)
     west_aggregation = np.copy(south_aggregation)
     for y in range(0, height):
+        # Takes all the column and disparities for a single row
         east = cost_volume[y, :, :]
+        # Invert the columns to get the opposite direction
         west = np.flip(east, axis=0)
         east_aggregation[y, :, :] = get_path_cost(east, 1, penalties, width, disparities)
         west_aggregation[y, :, :] = np.flip(get_path_cost(west, 1, penalties, width, disparities), axis=0)
 
+    # Combine the costs from all paths into a single aggregation volume
     aggregation_volume = np.concatenate((south_aggregation[..., None], north_aggregation[..., None], east_aggregation[..., None], west_aggregation[..., None]), axis=3)
     
     return aggregation_volume
