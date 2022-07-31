@@ -100,6 +100,17 @@ def aggregate_costs(cost_volume, P2, P1, height, width, disparities):
 
 
 def compute_census_np(left, right, csize, height, width):
+    """
+    Calculate census bit strings for each pixel in the left and right images.
+    Arguments:
+        - left: left grayscale image.
+        - right: right grayscale image.
+        - csize: kernel size for the census transform.
+        - height: number of rows of the image.
+        - width: number of columns of the image.
+
+    Return: Left and right images with pixel intensities replaced with census bit strings.
+    """
     cheight = csize[0]
     cwidth = csize[1]
     y_offset = int(cheight / 2)
@@ -132,6 +143,17 @@ def compute_census_np(left, right, csize, height, width):
 
 
 def compute_census(left, right, csize, height, width):
+    """
+    Calculate census bit strings for each pixel in the left and right images.
+    Arguments:
+        - left: left grayscale image.
+        - right: right grayscale image.
+        - csize: kernel size for the census transform.
+        - height: number of rows of the image.
+        - width: number of columns of the image.
+
+    Return: Left and right images with pixel intensities replaced with census bit strings.
+    """
     cheight = csize[0]
     cwidth = csize[1]
     y_offset = int(cheight / 2)
@@ -143,7 +165,7 @@ def compute_census(left, right, csize, height, width):
     print('\tComputing left and right census...', end='')
     sys.stdout.flush()
     dawn = t.time()
-    # pixels on the border will have no census values
+    # offset is used since pixels on the border will have no census values
     for y in range(y_offset, height - y_offset):
         for x in range(x_offset, width - x_offset):
             # left
@@ -176,12 +198,19 @@ def compute_census(left, right, csize, height, width):
 
 def compute_costs_np_slow(left_census_values, right_census_values, max_disparity, csize, height, width):
     """
-    first step of the sgm algorithm, matching cost based on census transform and hamming distance.
-    :param left: left image.
-    :param right: right image.
-    :param parameters: structure containing parameters of the algorithm.
-    :param save_images: whether to save census images or not.
-    :return: H x W x D array with the matching costs.
+    Create cost volume for all potential disparities. 
+    Cost volumes for both left and right images are calculated.
+    Hamming distance is used to calculate the matching cost between 
+    two pixels census values.
+    Arguments:
+        - left_census_values: left image containing census bit strings for each pixel (in integer form).
+        - right_census_values: right image containing census bit strings for each pixel (in integer form).
+        - max_disparity: maximum disparity to measure.
+        - csize: kernel size for the census transform.
+        - height: number of rows of the image.
+        - width: number of columns of the image.
+
+    Return: Left and right cost volumes with dimensions H x W x D.
     """
     cwidth = csize[1]
     x_offset = int(cwidth / 2)
@@ -221,44 +250,58 @@ def compute_costs_np_slow(left_census_values, right_census_values, max_disparity
 
 def compute_costs(left_census_values, right_census_values, max_disparity, csize, height, width):
     """
-    first step of the sgm algorithm, matching cost based on census transform and hamming distance.
-    :param left: left image.
-    :param right: right image.
-    :param parameters: structure containing parameters of the algorithm.
-    :param save_images: whether to save census images or not.
-    :return: H x W x D array with the matching costs.
+    Create cost volume for all potential disparities. 
+    Cost volumes for both left and right images are calculated.
+    Hamming distance is used to calculate the matching cost between 
+    two pixels census values.
+    Arguments:
+        - left_census_values: left image containing census bit strings for each pixel (in integer form).
+        - right_census_values: right image containing census bit strings for each pixel (in integer form).
+        - max_disparity: maximum disparity to measure.
+        - csize: kernel size for the census transform.
+        - height: number of rows of the image.
+        - width: number of columns of the image.
+
+    Return: Left and right cost volumes with dimensions H x W x D.
     """
     cwidth = csize[1]
     x_offset = int(cwidth / 2)
-    disparity = max_disparity
 
     print('\tComputing cost volumes...', end='')
     sys.stdout.flush()
     dawn = t.time()
-    left_cost_volume = np.zeros(shape=(height, width, disparity), dtype=np.uint32)
-    right_cost_volume = np.zeros(shape=(height, width, disparity), dtype=np.uint32)
+    left_cost_volume = np.zeros(shape=(height, width, max_disparity), dtype=np.uint32)
+    right_cost_volume = np.zeros(shape=(height, width, max_disparity), dtype=np.uint32)
     lcensus = np.zeros(shape=(height, width), dtype=np.int32)
     rcensus = np.zeros(shape=(height, width), dtype=np.int32)
 
-    for d in range(0, disparity):
+    for d in range(0, max_disparity):
+        # The right image is shifted d pixels accross
         rcensus[:, (x_offset + d):(width - x_offset)] = right_census_values[:, x_offset:(width - d - x_offset)]
+        # 1 is assigned when the bits differ and 0 when they are the same
         left_xor = np.int32(np.bitwise_xor(np.int32(left_census_values), rcensus))
+        # All the 1's are summed up to give us the number of different pixels (the cost)
         left_distance = np.zeros(shape=(height, width), dtype=np.uint32)
         while not np.all(left_xor == 0):
             tmp = left_xor - 1
             mask = left_xor != 0
             left_xor[mask] = np.bitwise_and(left_xor[mask], tmp[mask])
             left_distance[mask] = left_distance[mask] + 1
+        # All the costs for that disparity are added to the cost volume
         left_cost_volume[:, :, d] = left_distance
 
+        # The left image is shifted d pixels accross
         lcensus[:, x_offset:(width - d - x_offset)] = left_census_values[:, (x_offset + d):(width - x_offset)]
+        # 1 is assigned when the bits differ and 0 when they are the same
         right_xor = np.int32(np.bitwise_xor(np.int32(right_census_values), lcensus))
+        # All the 1's are summed up to give us the number of different pixels (the cost)
         right_distance = np.zeros(shape=(height, width), dtype=np.uint32)
         while not np.all(right_xor == 0):
             tmp = right_xor - 1
             mask = right_xor != 0
             right_xor[mask] = np.bitwise_and(right_xor[mask], tmp[mask])
             right_distance[mask] = right_distance[mask] + 1
+        # All the costs for that disparity are added to the cost volume
         right_cost_volume[:, :, d] = right_distance
 
     dusk = t.time()
