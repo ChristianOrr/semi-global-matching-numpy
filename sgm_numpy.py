@@ -53,13 +53,24 @@ def get_path_cost(slice, offset, penalties, other_dim, disparity_dim):
     return minimum_cost_path
 
 
-def get_penalties(disparity_dim, P2, P1):
-
-    p2 = np.full(shape=(disparity_dim, disparity_dim), fill_value=P2, dtype=np.uint32)
-    p1 = np.full(shape=(disparity_dim, disparity_dim), fill_value=P1 - P2, dtype=np.uint32)
+def get_penalties(max_disparity, P2, P1):
+    """
+    Creates a matrix of all the potential penalties for matching
+    a current disparity (represented by the column index), with 
+    a previous disparity (represented by the row index).
+    Arguments:
+        - max_disparity: maximum disparity of the array.
+        - P2: penalty for disparity difference > 1
+        - P1: penalty for disparity difference = 1
+    
+    Return: Matrix containing all the penalties when disparity d1 from a column
+            is matched with a previous disparity d2 from the row.
+    """
+    p2 = np.full(shape=(max_disparity, max_disparity), fill_value=P2, dtype=np.uint32)
+    p1 = np.full(shape=(max_disparity, max_disparity), fill_value=P1 - P2, dtype=np.uint32)
     p1 = np.tril(p1, k=1) # keep values lower than k'th diagonal
     p1 = np.triu(p1, k=-1) # keep values higher than k'th diagonal
-    no_penalty = np.identity(disparity_dim, dtype=np.uint32) * -P1 # create diagonal matrix with values -p1
+    no_penalty = np.identity(max_disparity, dtype=np.uint32) * -P1 # create diagonal matrix with values -p1
     penalties = p1 + p2 + no_penalty
     return penalties
 
@@ -321,14 +332,17 @@ def select_disparity(aggregation_volume):
     return disparity_map
 
 
-def normalize(volume, max_disparity):
+def normalize(disp, max_disparity):
     """
-    transforms values from the range (0, 64) to (0, 255).
-    :param volume: n dimension array to normalize.
-    :param parameters: structure containing parameters of the algorithm.
-    :return: normalized array.
+    Normalizes the disparity map, then
+    quantizes it so that it can be displayed. 
+    Arguments:
+        - disp: disparity map with dimensions H x W.
+        - max_disparity: maximum disparity of the array.
+    
+    Return: normalized then quantized array, ready for visualization.
     """
-    return 255.0 * volume / max_disparity
+    return 255.0 * disp / max_disparity
 
 
 def get_recall(disparity, gt, max_disparity):
