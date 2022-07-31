@@ -349,12 +349,22 @@ def compute_costs(left_census_values, right_census_values, max_disparity, csize,
 
 def select_disparity(aggregation_volume):
     """
-    last step of the sgm algorithm, corresponding to equation 14 followed by winner-takes-all approach.
-    :param aggregation_volume: H x W x D x N array of matching cost for all defined directions.
-    :return: H x W disparity image.
+    Converts the aggregation volume into a disparity map using 
+    the winner takes all strategy. 
+    Cost volume is first calculated by taking the sum of the costs over all paths.
+    Then the disparities are determined by finding the 
+    disparity index with the lowest cost for the pixel.
+
+    Arguments:
+        - aggregation_volume: Array containing the matching costs for 
+            all pixels at all disparities and paths, with dimension H x W x D x N
+
+    Returns: Disparity map with dimensions H x W.
     """
-    volume = np.sum(aggregation_volume, axis=3) # sum up costs for all directions
-    disparity_map = np.argmin(volume, axis=2) # returns the disparity index with the minimum cost associated with each h x w pixel
+    # sum up costs for all directions
+    volume = np.sum(aggregation_volume, axis=3) 
+    # returns the disparity index with the minimum cost associated with each h x w pixel
+    disparity_map = np.argmin(volume, axis=2) 
     return disparity_map
 
 
