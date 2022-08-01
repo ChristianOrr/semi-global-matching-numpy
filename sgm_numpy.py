@@ -87,9 +87,12 @@ def aggregate_costs(cost_volume, P2, P1, height, width, disparities):
     Returns: Array containing the pixels matching costs for all disparities along 
         all directions, with dimension H x W x D X 4.
     """
+    sys.stdout.flush()
+    dawn = t.time()
+
     penalties = get_penalties(disparities, P2, P1)
 
-    print("Processing North and South aggregation")
+    print("\tProcessing North and South aggregation...")
     south_aggregation = np.zeros(shape=(height, width, disparities), dtype=np.uint32)
     north_aggregation = np.copy(south_aggregation)
 
@@ -102,7 +105,7 @@ def aggregate_costs(cost_volume, P2, P1, height, width, disparities):
         north_aggregation[:, x, :] = np.flip(get_path_cost(north, 1, penalties, height, disparities), axis=0)
 
 
-    print("Processing East and West aggregation.")
+    print("\tProcessing East and West aggregation...", end='')
     east_aggregation = np.copy(south_aggregation)
     west_aggregation = np.copy(south_aggregation)
     for y in range(0, height):
@@ -115,7 +118,10 @@ def aggregate_costs(cost_volume, P2, P1, height, width, disparities):
 
     # Combine the costs from all paths into a single aggregation volume
     aggregation_volume = np.concatenate((south_aggregation[..., None], north_aggregation[..., None], east_aggregation[..., None], west_aggregation[..., None]), axis=3)
-    
+
+    dusk = t.time()
+    print('\t(done in {:.2f}s)'.format(dusk - dawn))
+
     return aggregation_volume
 
 
