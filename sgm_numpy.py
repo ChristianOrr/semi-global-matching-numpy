@@ -1,32 +1,15 @@
 """
-python implementation of the semi-global matching algorithm from Stereo Processing by Semi-Global Matching
-and Mutual Information (https://core.ac.uk/download/pdf/11134866.pdf) by Heiko Hirschmuller.
-
-author: David-Alexandre Beaupre
-date: 2019/07/12
+This is the python script version of Semi-Global Matching with numpy.
+Very little explanations are provided for the methods in this script.
+To see a detailed overview of this numpy implementation see the jupyter
+notebook: "sgm_numpy_notebook.ipynb".
 """
 
 import argparse
 import sys
 import time as t
-
 import cv2
 import numpy as np
-
-
-def load_images(left_name, right_name, bsize):
-    """
-    read and blur stereo image pair.
-    :param left_name: name of the left image.
-    :param right_name: name of the right image.
-    :param parameters: structure containing parameters of the algorithm.
-    :return: blurred left and right images.
-    """
-    left = cv2.imread(left_name, cv2.IMREAD_GRAYSCALE)
-    left = cv2.GaussianBlur(left, bsize, 0, 0)
-    right = cv2.imread(right_name, cv2.IMREAD_GRAYSCALE)
-    right = cv2.GaussianBlur(right, bsize, 0, 0)
-    return left, right
 
 
 def get_path_cost(slice, offset, penalties, other_dim, disparity_dim):
@@ -383,11 +366,18 @@ def normalize(disp, max_disparity):
 
 def get_recall(disparity, gt, max_disparity):
     """
-    computes the recall of the disparity map.
-    :param disparity: disparity image.
-    :param gt: ground-truth image.
-    :param max_disparity: maximum disparity for the stereo pair.
-    :return: rate of correct predictions.
+    Calculates the percentage of pixels from the 
+    disparity map "disparity" within 3 absolute 
+    disparity of the ground truth "gt". 
+    Higher percentage is better.
+
+    Arguments:
+        - disparity: 
+        - gt: 
+        - max_disparity: 
+
+    Returns: Percentage of pixels within 3 disparity of 
+    the groundtruth.
     """
     gt = np.float32(gt)
     gt = np.int16(gt / 255.0 * float(max_disparity))
@@ -429,11 +419,16 @@ def sgm():
     dawn = t.time()
 
     print('\nLoading images...')
-    left, right = load_images(left_name, right_name, bsize)
+    left = cv2.imread(left_name, cv2.IMREAD_GRAYSCALE)
+    right = cv2.imread(right_name, cv2.IMREAD_GRAYSCALE)
     height = left.shape[0]
     width = left.shape[1]
     assert left.shape[0] == right.shape[0] and left.shape[1] == right.shape[1], 'left & right must have the same shape.'
     assert max_disparity > 0, 'maximum disparity must be greater than 0.'
+
+    print("Performing Gaussian blur on the images...")
+    left = cv2.GaussianBlur(left, bsize, 0, 0)
+    right = cv2.GaussianBlur(right, bsize, 0, 0)
 
     print('\nStarting cost computation...')
     left_census, right_census = compute_census(left, right, csize, height, width)
