@@ -1,36 +1,24 @@
-# Semi-Global Matching
+# Semi-Global Matching Numpy
 
-Implementation of the Semi-Global Matching algorithm in Python.
+## Introduction
+This is a reimplementation of the Semi-Global Matching algorithm using numpy. A python script and jupyter notebook is provided implementing SGM in the same way. The notebook provides visualizations and explanations for each step in the process. If you're new to depth estimation/SGM, its recommended to read the notebook first.
 
-![](figures/cones.png)
+## SGM Brief Description
+SGM is a popular classic depth estimation algorithm, known for having good accuracy for its speed. Its widely used in resource constrained  situations.
 
-![](figures/teddy.png)
+## Requirements
+All you need to run the SGM algorithm are a pair of rectified stereo images. Stereo pair examples from the Middlebury dataset are provided for you (cones, figures and teddy). If you would like to review the algorithms accuracy, you will also need groundtruth disparities. 
 
-#### Dependencies
-* [OpenCV](https://opencv.org/)
-* [NumPy](https://numpy.org/)
+If you would like to use your own stereo images and your stereo camera doesn't provide rectified stereo pairs, then you can calibrate your stereo camera using the methods shown in this repo: [stereo-camera-calibration](https://github.com/ChristianOrr/stereo-camera-calibration).
 
-#### Instructions
-```
-$ git clone https://github.com/beaupreda/semi-global-matching.git
-$ cd path/to/semi-global-matching
-```
+The python packages needed are shown in the requirements.txt. I've listed the versions of the packages I used, but it will probably also work with other versions.
 
-#### Usage
-```
-python3 sgm.py --left [LEFT IMAGE NAME] --right [RIGHT IMAGE NAME] --left_gt [LEFT GT IMAGE NAME] --right_gt [RIGHT GT IMAGE NAME] --output [OUTPUT IMAGE NAME] --disp [MAXIMUM DISPARITY] --images [TRUE OR FALSE] --eval [TRUE OR FALSE]
-```
 
-#### Example
-```
-python3 sgm.py --left cones/im2.png --right cones/im6.png --left_gt cones/disp2.png --right_gt cones/disp6.png --output disparity_map.png --disp 64 --images False --eval True
-```
 
-#### Other implementations
-* [C++](https://github.com/epiception/SGM-Census)
-* [MATLAB](https://github.com/kobybibas/SemiGlobalMathingImplementation)
-* [CUDA](https://github.com/fixstars/libSGM)
 
-#### References
-* [Stereo Processing by Semi-Global Matching and Mutual Information](https://core.ac.uk/download/pdf/11134866.pdf)
-* [LUNOKHOD SGM Blog Post](http://lunokhod.org/?p=1356)
+
+
+## References
+* [Previous Implementation in Python](https://github.com/beaupreda/semi-global-matching), by David-Alexandre Beaupre.
+* [(SGM) Stereo Processing by Semi-Global Matching and Mutual Information](https://core.ac.uk/download/pdf/11134866.pdf), by Heiko Hirschmuller.
+* [(Census) Nonparametric Local Transforms for Computing Visual Correspondence](http://www.cs.cornell.edu/~rdz/Papers/ZW-ECCV94.pdf), by R Zabih and J Woodfill.
