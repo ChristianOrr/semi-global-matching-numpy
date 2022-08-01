@@ -387,11 +387,38 @@ def get_recall(disparity, gt, max_disparity):
 
 
 
-def sgm():
-    """
-    main function applying the semi-global matching algorithm.
-    :return: void.
-    """
+def sgm(left, right, max_disparity, P1, P2, csize, bsize):
+
+    print("Performing Gaussian blur on the images...")
+    left = cv2.GaussianBlur(left, bsize, 0, 0)
+    right = cv2.GaussianBlur(right, bsize, 0, 0)
+
+    print('\nStarting cost computation...')
+    left_census, right_census = compute_census(left, right, csize, height, width)
+    left_cost_volume, right_cost_volume = compute_costs(left_census, right_census, max_disparity, csize, height, width)
+
+
+    print('\nStarting left aggregation computation...')
+    left_aggregation_volume = aggregate_costs(left_cost_volume, P2, P1, height, width, max_disparity)
+    print('\nStarting right aggregation computation...')
+    right_aggregation_volume = aggregate_costs(right_cost_volume, P2, P1, height, width, max_disparity)
+
+
+    print('\nSelecting best disparities...')
+    left_disparity_map = np.uint8(normalize(select_disparity(left_aggregation_volume), max_disparity))
+    right_disparity_map = np.uint8(normalize(select_disparity(right_aggregation_volume), max_disparity))
+
+
+    print('\nApplying median filter...')
+    left_disparity_map = cv2.medianBlur(left_disparity_map, bsize[0])
+    right_disparity_map = cv2.medianBlur(right_disparity_map, bsize[0])
+
+    return left_disparity_map, right_disparity_map
+
+
+
+if __name__ == '__main__':
+    
     parser = argparse.ArgumentParser()
     parser.add_argument('--left', default='cones/im2.png', help='name (path) to the left image')
     parser.add_argument('--right', default='cones/im6.png', help='name (path) to the right image')
@@ -401,6 +428,10 @@ def sgm():
     parser.add_argument('--disp', default=64, type=int, help='maximum disparity for the stereo pair')
     parser.add_argument('--images', default=False, type=bool, help='save intermediate representations')
     parser.add_argument('--eval', default=True, type=bool, help='evaluate disparity map with 3 pixel error')
+    parser.add_argument('--p1', default=10, type=int, help='penalty for disparity difference = 1')
+    parser.add_argument('--p2', default=120, type=int, help='penalty for disparity difference > 1')
+    parser.add_argument('--csize', default=[5, 5], nargs="+", type=int, help='size of the kernel for the census transform')
+    parser.add_argument('--bsize', default=[3, 3], nargs="+", type=int, help='size of the kernel for blurring the images and median filtering')
     args = parser.parse_args()
 
     left_name = args.left
@@ -411,10 +442,10 @@ def sgm():
     save_images = args.images
     evaluation = args.eval
     max_disparity = args.disp
-    P1 = 10 # penalty for disparity difference = 1
-    P2 = 120 # penalty for disparity difference > 1
-    csize = (5, 5) # size of the kernel for the census transform.
-    bsize = (3, 3) # size of the kernel for blurring the images and median filtering.
+    P1 = args.p1
+    P2 = args.p2
+    csize = args.csize
+    bsize = args.bsize
 
     dawn = t.time()
 
@@ -426,39 +457,13 @@ def sgm():
     assert left.shape[0] == right.shape[0] and left.shape[1] == right.shape[1], 'left & right must have the same shape.'
     assert max_disparity > 0, 'maximum disparity must be greater than 0.'
 
-    print("Performing Gaussian blur on the images...")
-    left = cv2.GaussianBlur(left, bsize, 0, 0)
-    right = cv2.GaussianBlur(right, bsize, 0, 0)
 
-    print('\nStarting cost computation...')
-    left_census, right_census = compute_census(left, right, csize, height, width)
+    left_disparity_map, right_disparity_map = sgm(left, right, max_disparity, P1, P2, csize, bsize)
 
-    left_cost_volume, right_cost_volume = compute_costs(left_census, right_census, max_disparity, csize, height, width)
+
     if save_images:
-        cv2.imwrite('left_census.png', np.uint8(left_census))
-        left_disparity_map = np.uint8(normalize(np.argmin(left_cost_volume, axis=2), max_disparity))
-        cv2.imwrite('disp_map_left_cost_volume.png', left_disparity_map)
-        cv2.imwrite('right_census.png', np.uint8(right_census))
-        right_disparity_map = np.uint8(normalize(np.argmin(right_cost_volume, axis=2), max_disparity))
-        cv2.imwrite('disp_map_right_cost_volume.png', right_disparity_map)
-
-    print('\nStarting left aggregation computation...')
-    left_aggregation_volume = aggregate_costs(left_cost_volume, P2, P1, height, width, max_disparity)
-    print('\nStarting right aggregation computation...')
-    right_aggregation_volume = aggregate_costs(right_cost_volume, P2, P1, height, width, max_disparity)
-
-    print('\nSelecting best disparities...')
-    left_disparity_map = np.uint8(normalize(select_disparity(left_aggregation_volume), max_disparity))
-    right_disparity_map = np.uint8(normalize(select_disparity(right_aggregation_volume), max_disparity))
-    if save_images:
-        cv2.imwrite('left_disp_map_no_post_processing.png', left_disparity_map)
-        cv2.imwrite('right_disp_map_no_post_processing.png', right_disparity_map)
-
-    print('\nApplying median filter...')
-    left_disparity_map = cv2.medianBlur(left_disparity_map, bsize[0])
-    right_disparity_map = cv2.medianBlur(right_disparity_map, bsize[0])
-    cv2.imwrite(f'left_{output_name}', np.array(left_disparity_map))
-    cv2.imwrite(f'right_{output_name}', np.array(right_disparity_map))
+        cv2.imwrite(f'left_{output_name}', np.array(left_disparity_map))
+        cv2.imwrite(f'right_{output_name}', np.array(right_disparity_map))
 
     if evaluation:
         left_gt = cv2.imread(left_gt_name, cv2.IMREAD_GRAYSCALE)
@@ -474,7 +479,3 @@ def sgm():
     dusk = t.time()
     print('\nFin.')
     print('\nTotal execution time = {:.2f}s'.format(dusk - dawn))
-
-
-if __name__ == '__main__':
-    sgm()
