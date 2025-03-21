@@ -63,13 +63,13 @@ def get_penalties(max_disparity, P2, P1):
     Return: Matrix containing all the penalties when disparity d1 from a column
             is matched with a previous disparity d2 from the row.
     """
-    p2 = np.full(shape=(max_disparity, max_disparity), fill_value=P2, dtype=np.uint32)
-    p1 = np.full(shape=(max_disparity, max_disparity), fill_value=P1 - P2, dtype=np.uint32)
+    p2 = np.full(shape=(max_disparity, max_disparity), fill_value=P2, dtype=np.int32)
+    p1 = np.full(shape=(max_disparity, max_disparity), fill_value=P1 - P2, dtype=np.int32)
     p1 = np.tril(p1, k=1) # keep values lower than k'th diagonal
     p1 = np.triu(p1, k=-1) # keep values higher than k'th diagonal
-    no_penalty = np.identity(max_disparity, dtype=np.uint32) * -P1 # create diagonal matrix with values -p1
+    no_penalty = np.identity(max_disparity, dtype=np.int32) * -P1 # create diagonal matrix with values -p1
     penalties = p1 + p2 + no_penalty
-    return penalties
+    return penalties.astype(np.uint32)
 
 
 def aggregate_costs(cost_volume, P2, P1, height, width, disparities):
@@ -483,5 +483,5 @@ if __name__ == '__main__':
         print('\tRecall = {:.2f}%'.format(recall * 100.0))
 
     dusk = t.time()
-    print('\nFin.')
+    print('\nFinished!')
     print('\nTotal execution time = {:.2f}s'.format(dusk - dawn))
