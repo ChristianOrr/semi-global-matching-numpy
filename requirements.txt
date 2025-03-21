@@ -1,5 +1,5 @@
-numpy==1.23
-jupyter==1.0
-opencv-contrib-python==4.6
-Pillow==9.2
-matplotlib==3.5
+numpy==2.2
+jupyter==1.1
+opencv-contrib-python==4.11
+Pillow==11.1
+matplotlib==3.10
