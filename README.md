@@ -6,6 +6,19 @@ This is a reimplementation of the Semi-Global Matching algorithm using numpy. Bo
 ## SGM Brief Description
 SGM is a popular classic depth estimation algorithm, known for having good accuracy and speed. Newer stereo depth estimation models like [madnet-deep-stereo-with-keras](https://github.com/ChristianOrr/madnet-deep-stereo-with-keras) have much higher accuracy, but need to be trained first and require more compute during inference. This makes SGM and excellent option for resource constrained situations.
 
+## History of Semi-Global Matching
+The Semi-Global Matching algorithm was first introduced by Heiko Hirschmuller in his 2005 paper "Stereo Processing by Semi-Global Matching and Mutual Information". This work built upon earlier stereo matching techniques and introduced a novel approach to reduce the computational complexity while maintaining good accuracy.
+
+The SGM algorithm is an extension of global matching methods that use dynamic programming. It differs from traditional global methods by considering paths in multiple directions (typically 8 directions) rather than just horizontal or vertical paths, which helps to better handle occlusions and textureless regions.
+
+Key contributions of the SGM approach include:
+- Efficient cost aggregation using multi-directional path searching
+- Reduced computational complexity compared to full global methods
+- Improved handling of discontinuities in disparity maps
+- Good balance between accuracy and speed
+
+The algorithm has since become a standard baseline for stereo matching evaluation and is widely used in both academic research and practical applications, particularly in robotics and computer vision systems where real-time performance is crucial.
+
 ## Requirements
 All you need to run the SGM algorithm are a pair of rectified stereo images. Stereo pair examples from the Middlebury dataset are provided for you (cones, figures and teddy). If you would like to review the algorithms accuracy you need groundtruth disparities. 
 
